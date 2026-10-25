@@ -12,9 +12,14 @@ enum QueueSource {
     case songs([Song])
     case tracks([Track])
     case demo([DemoSong])
+    /// Spotify / YouTube tracks; `context` is a Spotify playlist/album/artist URI when there is one.
+    case remote([RemoteTrack], context: String?)
 
     var count: Int {
-        switch self { case .songs(let s): return s.count; case .tracks(let t): return t.count; case .demo(let d): return d.count }
+        switch self {
+        case .songs(let s): return s.count; case .tracks(let t): return t.count; case .demo(let d): return d.count
+        case .remote(let r, _): return r.count
+        }
     }
 }
 
@@ -33,6 +38,9 @@ indirect enum ScreenSpec {
     case nowPlaying
     case preset(title: String, rows: [Row])
     case demoList(title: String, kind: DemoKind)
+    /// A Spotify/YouTube item (playlist, album, artist, channel…) the active source knows how to open.
+    case node(title: String, ref: String)
+    case source
 
     var title: String {
         switch self {
@@ -55,6 +63,8 @@ indirect enum ScreenSpec {
         case .nowPlaying: return "Now Playing"
         case .preset(let t, _): return t
         case .demoList(let t, _): return t
+        case .node(let t, _): return t
+        case .source: return "Source"
         }
     }
 
@@ -73,6 +83,10 @@ enum RowAction {
     case toggle(SettingKey)
     case searchInput
     case openSystemSettings
+    case setSource(MusicSourceKind)
+    case signIn
+    case signOut
+    case openURL(URL)
     case back
     case none
 }

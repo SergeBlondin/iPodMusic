@@ -39,6 +39,7 @@ final class AppSettings {
     var shuffle: ShuffleSetting { didSet { d.set(shuffle.rawValue, forKey: "shuffle") } }
     var repeatMode: RepeatSetting { didSet { d.set(repeatMode.rawValue, forKey: "repeat") } }
     var autoNowPlaying: Bool { didSet { d.set(autoNowPlaying, forKey: "autoNowPlaying") } }
+    var source: MusicSourceKind { didSet { d.set(source.rawValue, forKey: "source") } }
 
     /// Launch-argument only (e.g. `-startScreen nowPlaying`), used for screenshots.
     let startScreen: String?
@@ -57,6 +58,7 @@ final class AppSettings {
         shuffle = ShuffleSetting(rawValue: d.string(forKey: "shuffle") ?? "off") ?? .off
         repeatMode = RepeatSetting(rawValue: d.string(forKey: "repeat") ?? "off") ?? .off
         autoNowPlaying = d.bool(forKey: "autoNowPlaying")
+        source = MusicSourceKind(rawValue: d.string(forKey: "source") ?? "") ?? .appleMusic
         startScreen = d.string(forKey: "startScreen")
         #if targetEnvironment(simulator)
         // The simulator has no Apple Music library; always use labelled demo content there.

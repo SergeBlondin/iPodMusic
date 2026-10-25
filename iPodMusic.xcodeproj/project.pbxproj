@@ -7,15 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1F9EF69CEDF28A1403DC6EA3 /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = D2873A39F2B068998E286E79 /* SpotifyiOS */; };
 		349E180B50D87F7D67E2DDE2 /* iPodMusicApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F81F75772CFAE0F16F1616B /* iPodMusicApp.swift */; };
 		4C5375880B3CEA17A669F89C /* ClickWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 677BB43DFA34E90C338EEB55 /* ClickWheelView.swift */; };
 		720D9460689B380FDE7EEAFA /* LCDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29CEC275291916D418CBB263 /* LCDView.swift */; };
+		74B01E20229CB1F9E60AEEA0 /* Sources.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB834EA86AF1A45E44F2962B /* Sources.swift */; };
 		7899A0112A64364A67053A6C /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A439803BE2BA7C4A5623B4 /* Settings.swift */; };
 		86E8956543ECAC07E9A6DB66 /* click.wav in Resources */ = {isa = PBXBuildFile; fileRef = E813A726846A40BC87FAEF2A /* click.wav */; };
+		8973B1955D82EC02E37654D6 /* SpotifyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F4482E878E9935ABA8ED276 /* SpotifyService.swift */; };
 		8C732F8FA7BE02C4CDE082E3 /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3F1868EDAECF3B3CB72418EC /* PixelifySans.ttf */; };
 		90181FC787295A83A1D4DA7F /* Feedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5BE6D01C328D7E3EA9B1216 /* Feedback.swift */; };
 		9B4922262CD4366DB6A13572 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3F7EFA8DE06256776F7D3A /* ContentView.swift */; };
 		B19AFEEE71446D8BDF307F88 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC1D8871978ECEAD55BD24E /* Library.swift */; };
+		BA8AB1A2AA7DE78496C5B548 /* YouTubeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6DD06F5FA5525B7B642C02 /* YouTubeService.swift */; };
 		BF97D3EB1704F517294D7BD1 /* Navigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46F10EB833FB04FE3893208 /* Navigator.swift */; };
 		BFC48FEFBFBD520075E5CCFF /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E99FDD688D49769BE8ACAED /* Models.swift */; };
 		C2EAA9EDED359307AC374490 /* PlayerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD524B01A1C358F0841A4ED0 /* PlayerModel.swift */; };
@@ -34,13 +38,28 @@
 		5A3895C1BB26D1F01E454122 /* iPodMusic.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iPodMusic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CC1D8871978ECEAD55BD24E /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		677BB43DFA34E90C338EEB55 /* ClickWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickWheelView.swift; sourceTree = "<group>"; };
+		7F4482E878E9935ABA8ED276 /* SpotifyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyService.swift; sourceTree = "<group>"; };
+		8E6DD06F5FA5525B7B642C02 /* YouTubeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeService.swift; sourceTree = "<group>"; };
 		9DC8E925DDE0BD4884F26229 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A46F10EB833FB04FE3893208 /* Navigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navigator.swift; sourceTree = "<group>"; };
 		CD524B01A1C358F0841A4ED0 /* PlayerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerModel.swift; sourceTree = "<group>"; };
 		DC3F7EFA8DE06256776F7D3A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E5BE6D01C328D7E3EA9B1216 /* Feedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feedback.swift; sourceTree = "<group>"; };
 		E813A726846A40BC87FAEF2A /* click.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = click.wav; sourceTree = "<group>"; };
+		EB834EA86AF1A45E44F2962B /* Sources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources.swift; sourceTree = "<group>"; };
+		F7EC8C310C9806BAA367F0D1 /* Sources.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Sources.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C335C4D65737F43C62964071 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1F9EF69CEDF28A1403DC6EA3 /* SpotifyiOS in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		2B8F1ADF14DDFAFFB769B8B8 /* Fonts */ = {
@@ -63,6 +82,7 @@
 		86123C35689C3C6048D99EDC = {
 			isa = PBXGroup;
 			children = (
+				E5F30C545E0DF3FFDA8C7737 /* Config */,
 				F8EF75B6A35AECC8656EBA06 /* iPodMusic */,
 				516B3CEB552504E590D034B8 /* Products */,
 			);
@@ -74,6 +94,14 @@
 				E813A726846A40BC87FAEF2A /* click.wav */,
 			);
 			path = Sounds;
+			sourceTree = "<group>";
+		};
+		E5F30C545E0DF3FFDA8C7737 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				F7EC8C310C9806BAA367F0D1 /* Sources.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		F8EF75B6A35AECC8656EBA06 /* iPodMusic */ = {
@@ -91,6 +119,9 @@
 				A46F10EB833FB04FE3893208 /* Navigator.swift */,
 				CD524B01A1C358F0841A4ED0 /* PlayerModel.swift */,
 				35A439803BE2BA7C4A5623B4 /* Settings.swift */,
+				EB834EA86AF1A45E44F2962B /* Sources.swift */,
+				7F4482E878E9935ABA8ED276 /* SpotifyService.swift */,
+				8E6DD06F5FA5525B7B642C02 /* YouTubeService.swift */,
 				2B8F1ADF14DDFAFFB769B8B8 /* Fonts */,
 				92416A36B277879D4358BA7E /* Sounds */,
 			);
@@ -106,6 +137,7 @@
 			buildPhases = (
 				31234BB52CF6BB74A728DF83 /* Sources */,
 				A451AE2CA7AED729A6FDEFB2 /* Resources */,
+				C335C4D65737F43C62964071 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -113,6 +145,7 @@
 			);
 			name = iPodMusic;
 			packageProductDependencies = (
+				D2873A39F2B068998E286E79 /* SpotifyiOS */,
 			);
 			productName = iPodMusic;
 			productReference = 5A3895C1BB26D1F01E454122 /* iPodMusic.app */;
@@ -142,6 +175,9 @@
 			);
 			mainGroup = 86123C35689C3C6048D99EDC;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8A9BE7A97D64B915E61419C4 /* XCRemoteSwiftPackageReference "ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 516B3CEB552504E590D034B8 /* Products */;
 			projectDirPath = "";
@@ -180,6 +216,9 @@
 				BF97D3EB1704F517294D7BD1 /* Navigator.swift in Sources */,
 				C2EAA9EDED359307AC374490 /* PlayerModel.swift in Sources */,
 				7899A0112A64364A67053A6C /* Settings.swift in Sources */,
+				74B01E20229CB1F9E60AEEA0 /* Sources.swift in Sources */,
+				8973B1955D82EC02E37654D6 /* SpotifyService.swift in Sources */,
+				BA8AB1A2AA7DE78496C5B548 /* YouTubeService.swift in Sources */,
 				349E180B50D87F7D67E2DDE2 /* iPodMusicApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -189,6 +228,7 @@
 /* Begin XCBuildConfiguration section */
 		1ECA37DDFEC9D8410A2077AF /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F7EC8C310C9806BAA367F0D1 /* Sources.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -269,6 +309,7 @@
 		};
 		9509EB8460008C43DD3312CD /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = F7EC8C310C9806BAA367F0D1 /* Sources.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -376,6 +417,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8A9BE7A97D64B915E61419C4 /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D2873A39F2B068998E286E79 /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A9BE7A97D64B915E61419C4 /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8BE6ECFD7FE62CA90BDF52FD /* Project object */;
 }

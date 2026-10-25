@@ -28,7 +28,7 @@ struct ContentView: View {
             }
         }
         .background(HiddenVolumeView().frame(width: 1, height: 1))
-        .alert("Search Apple Music", isPresented: $nav.showSearch) {
+        .alert("Search \(settings.demoMode ? "Apple Music" : settings.source.label)", isPresented: $nav.showSearch) {
             TextField("Artists, songs, albums", text: $searchText)
             Button("Search") { nav.submitSearch(searchText) }
             Button("Cancel", role: .cancel) {}
@@ -44,7 +44,9 @@ struct IPodBody: View {
         let p = ThemePalette.of(settings.theme)
         let shape = RoundedRectangle(cornerRadius: 38 * u, style: .continuous)
         VStack(spacing: 0) {
-            LCDView(u: u).padding(.top, 30 * u)
+            LCDView(u: u)
+                .overlay { YouTubeScreen(u: u) }
+                .padding(.top, 30 * u)
             ClickWheelView(u: u).padding(.top, 30 * u)
             Spacer(minLength: 0)
         }
@@ -67,5 +69,25 @@ struct IPodBody: View {
         )
         .overlay(shape.stroke(p.bodyRim.opacity(0.6), lineWidth: 1.5 * u))
         .shadow(color: .black.opacity(0.45), radius: 18 * u, x: 0, y: 10 * u)
+    }
+}
+
+/// YouTube's embedded player must stay visible (≥ 200×200 pt, nothing drawn over it) while it plays,
+/// so during YouTube Now Playing it takes over the iPod's screen, like video on an iPod.
+struct YouTubeScreen: View {
+    let u: CGFloat
+    @Environment(Navigator.self) private var nav
+    @Environment(PlayerModel.self) private var player
+
+    var body: some View {
+        if player.remoteKind == .youtubeMusic, nav.current.spec.isNowPlaying {
+            let yt = player.hub.youtube.player
+            YouTubePlayerView(player: yt)
+                .frame(width: max(200, 289 * u), height: max(200, 239 * u))
+                .clipShape(RoundedRectangle(cornerRadius: 10 * u, style: .continuous))
+                .onAppear { yt.setVisible(true) }
+                .onDisappear { yt.setVisible(false) }
+                .transition(.opacity)
+        }
     }
 }

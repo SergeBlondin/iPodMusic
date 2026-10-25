@@ -326,7 +326,7 @@ struct NowPlayingView: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
-        let showArt = settings.albumArt && (player.artwork != nil || player.demoHue != nil)
+        let showArt = settings.albumArt && (player.artwork != nil || player.demoHue != nil || player.artworkURL != nil)
         VStack(spacing: 0) {
             // .now-playing-index: "1 of 12" + shuffle/repeat modifiers
             HStack {
@@ -343,7 +343,8 @@ struct NowPlayingView: View {
             .padding(.bottom, 6 * u)
 
             if !player.hasItem {
-                Text("No Music").font(.chicago(23 * u)).padding(.top, 30 * u)
+                Text(player.lastError ?? "No Music").font(.chicago(23 * u)).padding(.top, 30 * u)
+                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.6)
             } else if showArt {
                 HStack(alignment: .top, spacing: 9 * u) {
                     ArtView(u: u, side: 64 * u)
@@ -379,6 +380,9 @@ struct ArtView: View {
         Group {
             if let a = player.artwork {
                 ArtworkImage(a, width: side, height: side)
+            } else if let url = player.artworkURL {
+                AsyncImage(url: url) { img in img.resizable().scaledToFill() } placeholder: { Color(hex: 0xBFC6CF) }
+                    .frame(width: side, height: side).clipped()
             } else if let hue = player.demoHue {
                 ZStack {
                     LinearGradient(colors: [Color(hue: hue, saturation: 0.55, brightness: 0.85),

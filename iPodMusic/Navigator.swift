@@ -114,6 +114,26 @@ final class Navigator {
 
     var current: Screen { stack[stack.count - 1] }
 
+    // MARK: Sources
+
+    var hub: SourceHub { player.hub }
+    /// The Spotify / YouTube library, or nil for Apple Music (and demo mode), which keep the original path.
+    var remoteLibrary: MusicLibraryProvider? {
+        settings.demoMode ? nil : hub.library(for: settings.source)
+    }
+
+    private func remoteGateRows(_ p: MusicLibraryProvider) -> [Row]? {
+        if let problem = p.setupProblem { return problem.map { Row(title: $0, centered: true, info: true) } }
+        if !p.isSignedIn { return [Row(title: "Sign In to \(p.kind.label)", chevron: true, action: .signIn)] }
+        return nil
+    }
+
+    func sourceRows() -> [Row] {
+        MusicSourceKind.allCases.map { k in
+            Row(title: k.label, value: k == settings.source ? "✓" : nil, action: .setSource(k))
+        }
+    }
+
     // MARK: Startup
 
     private func bootstrap() async {
@@ -136,11 +156,15 @@ final class Navigator {
             if stack.count > 1 { stack[1].selected = 3 }
         } else if settings.startScreen == "settings" {
             push(.settings, animated: false)
+        } else if settings.startScreen == "source" {
+            push(.settings, animated: false)
+            push(.source, animated: false)
         }
         noteActivity()
     }
 
     func mainRows() -> [Row] {
+        if let p = remoteLibrary { return remoteMainRows(p) }
         // Same top level as Apple's web iPod (Playlists, Artists, Songs, Settings, Now Playing),
         // plus Search for the Apple Music catalog.
         var rows: [Row] = [
@@ -157,8 +181,28 @@ final class Navigator {
         return rows
     }
 
+    private func remoteMainRows(_ p: MusicLibraryProvider) -> [Row] {
+        var rows: [Row] = [
+            Row(title: "Playlists", chevron: true, action: .push(.playlists)),
+            Row(title: "Artists", chevron: true, action: .push(.artists)),
+            Row(title: "Albums", chevron: true, action: .push(.albums)),
+            Row(title: "Songs", chevron: true, action: .push(.songs)),
+            Row(title: "Search", chevron: true, action: .push(.search)),
+            Row(title: "Settings", chevron: true, action: .push(.settings)),
+        ]
+        if player.hasItem { rows.append(Row(title: "Now Playing", chevron: true, action: .nowPlaying)) }
+        if p.setupProblem != nil {
+            rows.insert(Row(title: "Set Up \(p.kind.label)", chevron: true,
+                            action: .push(.preset(title: p.kind.label, rows: remoteGateRows(p) ?? []))), at: 0)
+        } else if !p.isSignedIn {
+            rows.insert(Row(title: "Sign In to \(p.kind.short)", chevron: true, action: .signIn), at: 0)
+        }
+        return rows
+    }
+
     func settingsRows() -> [Row] {
         var rows = [
+            Row(title: "Source", value: settings.source.short, chevron: true, action: .push(.source)),
             Row(title: "Shuffle", value: settings.shuffle.label, action: .toggle(.shuffle)),
             Row(title: "Repeat", value: settings.repeatMode.label, action: .toggle(.repeatMode)),
             Row(title: "Backlight Timer", value: settings.backlightTimer.label, action: .toggle(.backlight)),
@@ -175,6 +219,9 @@ final class Navigator {
             Row(title: "Cancel", action: .back),
             Row(title: "Reset", action: .toggle(.reset)),
         ]))))
+        if let p = remoteLibrary, p.isSignedIn {
+            rows.append(Row(title: "Sign Out of \(p.kind.short)", action: .signOut))
+        }
         rows.append(Row(title: "About", chevron: true, action: .push(.about)))
         return rows
     }
@@ -186,7 +233,8 @@ final class Navigator {
             Row(title: "iPod", centered: true, info: true),
             Row(title: "Songs", value: songs, info: true),
             Row(title: "Version", value: v, info: true),
-            Row(title: "Music", value: settings.demoMode ? "Demo" : (authorized ? "Apple Music" : "Not allowed"), info: true),
+            Row(title: "Music", value: settings.demoMode ? "Demo" : (remoteLibrary.map { $0.isSignedIn ? $0.kind.short : "Signed out" }
+                                                                    ?? (authorized ? "Apple Music" : "Not allowed")), info: true),
         ]
     }
 
@@ -197,7 +245,8 @@ final class Navigator {
         switch spec {
         case .settings: s.rows = settingsRows()
         case .about: s.rows = aboutRows(); s.selected = -1
-        case .search: s.rows = [Row(title: "Search Apple Music…", chevron: true, action: .searchInput)]
+        case .search: s.rows = [Row(title: "Search \(settings.demoMode ? "Apple Music" : settings.source.label)…", chevron: true, action: .searchInput)]
+        case .source: s.rows = sourceRows(); s.selected = MusicSourceKind.allCases.firstIndex(of: settings.source) ?? 0
         case .nowPlaying: npMode = .progress; scrubPreview = nil
         case .preset(_, let rows): s.rows = rows
         default: s.loading = true
@@ -230,7 +279,24 @@ final class Navigator {
 
     private func load(id: UUID, spec: ScreenSpec) async {
         var rows: [Row]
-        if !settings.demoMode && !authorized {
+        if let p = remoteLibrary {
+            if let gate = remoteGateRows(p) {
+                rows = gate
+            } else {
+                do {
+                    rows = try await p.rows(for: spec)
+                    if case .songs = spec, !rows.isEmpty {
+                        rows.insert(Row(title: "Shuffle Songs", action: .shuffleAll), at: 0)
+                    }
+                    if rows.isEmpty { rows = [Row(title: "No Music", centered: true, info: true)] }
+                } catch SourceError.notSignedIn {
+                    rows = [Row(title: "Sign In to \(p.kind.label)", chevron: true, action: .signIn)]
+                } catch {
+                    rows = [Row(title: "Couldn't Load", centered: true, info: true),
+                            Row(title: error.localizedDescription, centered: true, info: true)]
+                }
+            }
+        } else if !settings.demoMode && !authorized {
             rows = [Row(title: "Allow Apple Music", chevron: true, action: .openSystemSettings)]
         } else {
             do {
@@ -296,6 +362,7 @@ final class Navigator {
         case .shuffleAll:
             Task {
                 if settings.demoMode { await player.shuffle(.demo(DemoData.songs)) }
+                else if let p = remoteLibrary, let t = try? await p.allSongs() { await player.shuffle(.remote(t, context: nil)) }
                 else if authorized, let songs = try? await library.librarySongs() { await player.shuffle(.songs(songs)) }
                 refreshMainRows()
             }
@@ -313,7 +380,48 @@ final class Navigator {
                 }
                 stack[0].rows = mainRows()
             }
+        case .setSource(let k):
+            guard k != settings.source else { pop(); return }
+            settings.source = k
+            library.cachedSongs = nil
+            stack[0].rows = mainRows()
+            pop()
+        case .signIn:
+            guard let p = remoteLibrary else { return }
+            Task {
+                do {
+                    try await p.signIn()
+                    hub.revision += 1
+                } catch {
+                    let i = stack.count - 1
+                    stack[i].rows.append(Row(title: error.localizedDescription, centered: true, info: true))
+                }
+                reloadAfterSignIn()
+            }
+        case .signOut:
+            remoteLibrary?.signOut()
+            hub.revision += 1
+            let i = stack.count - 1
+            if current.spec.isSettings { stack[i].rows = settingsRows(); clampSelection() }
+            stack[0].rows = mainRows()
+        case .openURL(let url):
+            UIApplication.shared.open(url)
         case .none: break
+        }
+    }
+
+    /// After signing in, rebuild the main menu and reload whatever list is on screen.
+    func reloadAfterSignIn() {
+        stack[0].rows = mainRows()
+        let i = stack.count - 1
+        guard i > 0 else { clampSelection(); return }
+        let spec = stack[i].spec
+        switch spec {
+        case .settings, .about, .search, .nowPlaying, .source, .preset: return
+        default:
+            stack[i].loading = true
+            let id = stack[i].id
+            Task { await load(id: id, spec: spec) }
         }
     }
 

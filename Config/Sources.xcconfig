@@ -1,0 +1,9 @@
+// Music source credentials for the iPod app.
+// Paste your own IDs after the "=" signs (no quotes), then rebuild.
+//
+// Spotify: developer.spotify.com/dashboard -> your app -> Client ID
+SPOTIFY_CLIENT_ID =
+//
+// YouTube: Google Cloud Console -> APIs & Services -> Credentials ->
+// OAuth client ID of type "iOS" (looks like 1234567890-abc123.apps.googleusercontent.com)
+GOOGLE_CLIENT_ID =

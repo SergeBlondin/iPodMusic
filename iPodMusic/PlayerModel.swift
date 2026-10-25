@@ -20,8 +20,14 @@ final class PlayerModel {
     var count = 0
     var volume: Float = 0.5
     var lastError: String? = nil
+    /// Cover art URL for Spotify/YouTube tracks (Apple Music uses `artwork`).
+    var artworkURL: URL? = nil
+    /// Which non-Apple source is driving playback; nil = Apple Music (or demo) as before.
+    var remoteKind: MusicSourceKind? = nil
 
     private let settings: AppSettings
+    let hub: SourceHub
+    private var remote: RemotePlayback? { remoteKind.flatMap { hub.player(for: $0) } }
     private var timer: Timer?
     private var demoQueue: [DemoSong] = []
     private var demoIndex = 0
@@ -32,8 +38,9 @@ final class PlayerModel {
     private var player: ApplicationMusicPlayer { ApplicationMusicPlayer.shared }
     var isDemo: Bool { settings.demoMode }
 
-    init(settings: AppSettings) {
+    init(settings: AppSettings, hub: SourceHub) {
         self.settings = settings
+        self.hub = hub
         volume = AVAudioSession.sharedInstance().outputVolume
         timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
@@ -53,6 +60,20 @@ final class PlayerModel {
             applyDemo()
             return
         }
+        if let r = remote {
+            r.tick()
+            let s = r.state
+            hasItem = s.hasItem
+            title = s.title; artist = s.artist; album = s.album
+            time = s.time; duration = s.duration
+            isPlaying = s.isPlaying
+            index = s.index; count = s.count
+            artwork = nil; demoHue = nil; artworkURL = s.artworkURL
+            let v = AVAudioSession.sharedInstance().outputVolume
+            if !VolumeControl.shared.isAdjusting { volume = v }
+            return
+        }
+        artworkURL = nil
         let q = player.queue
         if let e = q.currentEntry {
             hasItem = true
@@ -88,7 +109,23 @@ final class PlayerModel {
     // MARK: Commands
 
     func play(_ source: QueueSource, at i: Int) async {
+        if case .remote = source {} else if case .demo = source {} else { remoteKind = nil }
         switch source {
+        case .remote(let tracks, let context):
+            let kind = settings.source
+            guard let r = hub.player(for: kind) else { return }
+            if remoteKind == nil, ApplicationMusicPlayer.shared.state.playbackStatus == .playing {
+                ApplicationMusicPlayer.shared.pause()
+            }
+            remoteKind = kind
+            lastError = nil
+            do {
+                try await r.play(tracks, at: i, context: context)
+                r.setModes(shuffle: settings.shuffle == .songs, repeatMode: settings.repeatMode)
+            } catch {
+                lastError = error.localizedDescription
+            }
+            refresh()
         case .demo(let songs):
             demoQueue = songs; demoIndex = i; demoTime = 0; demoPlaying = true; demoLastTick = Date()
             applyDemo()
@@ -105,6 +142,9 @@ final class PlayerModel {
 
     func shuffle(_ source: QueueSource) async {
         switch source {
+        case .remote(let t, _):
+            guard !t.isEmpty else { return }
+            await play(.remote(t.shuffled(), context: nil), at: 0)
         case .demo(let s):
             await play(.demo(s.shuffled()), at: 0)
         case .songs(let s):
@@ -134,6 +174,7 @@ final class PlayerModel {
 
     func applyModes() {
         guard !isDemo else { return }
+        if let r = remote { r.setModes(shuffle: settings.shuffle == .songs, repeatMode: settings.repeatMode); return }
         player.state.shuffleMode = settings.shuffle == .songs ? .songs : .off
         switch settings.repeatMode {
         case .off: player.state.repeatMode = MusicPlayer.RepeatMode.none
@@ -147,6 +188,7 @@ final class PlayerModel {
             guard !demoQueue.isEmpty else { return }
             demoPlaying.toggle(); demoLastTick = Date(); applyDemo(); return
         }
+        if let r = remote { r.togglePlay(); isPlaying.toggle(); return }
         guard hasItem else { return }
         if player.state.playbackStatus == .playing { player.pause() }
         else { Task { try? await player.play(); refresh() } }
@@ -155,6 +197,7 @@ final class PlayerModel {
 
     func next() {
         if isDemo { advanceDemo(1); return }
+        if let r = remote { r.next(); return }
         Task { try? await player.skipToNextEntry(); refresh() }
     }
 
@@ -163,6 +206,7 @@ final class PlayerModel {
             if demoTime > 3 { demoTime = 0; applyDemo() } else { advanceDemo(-1) }
             return
         }
+        if let r = remote { r.previous(); return }
         if player.playbackTime > 3 { player.playbackTime = 0; refresh(); return }
         Task { try? await player.skipToPreviousEntry(); refresh() }
     }
@@ -170,6 +214,7 @@ final class PlayerModel {
     func seek(to t: TimeInterval) {
         let clamped = max(0, min(duration, t))
         if isDemo { demoTime = clamped; applyDemo(); return }
+        if let r = remote { r.seek(to: clamped); time = clamped; return }
         player.playbackTime = clamped
         time = clamped
     }
