@@ -14,8 +14,25 @@ final class YouTubeService: MusicLibraryProvider {
     let player = YouTubePlayer()
     private let api = URL(string: "https://www.googleapis.com/youtube/v3")!
 
-    let clientID = AppConfig.string("GoogleClientID")
-    private lazy var oauth: OAuthPKCE? = {
+    /// Pasted in Settings ▸ Set Up YouTube, else Config/Sources.xcconfig.
+    var clientID: String? { ClientIDStore.effective(.youtubeMusic) }
+    private var builtFor: String?
+    private var _oauth: OAuthPKCE?
+    private var oauth: OAuthPKCE? {
+        let id = clientID
+        if id != builtFor || (id != nil && _oauth == nil) {
+            if builtFor != nil, builtFor != id { Keychain.delete("youtube.tokens"); cachedLiked = nil }
+            builtFor = id
+            _oauth = makeOAuth()
+        }
+        return _oauth
+    }
+
+    /// Google iOS clients redirect to the reversed client ID scheme
+    /// (com.googleusercontent.apps.<id>:/oauth2redirect). ASWebAuthenticationSession catches that
+    /// callback itself when the scheme is passed as callbackURLScheme, so it does not have to be
+    /// registered in Info.plist — which is why a pasted ID works without a rebuild.
+    private func makeOAuth() -> OAuthPKCE? {
         guard let id = clientID, id.hasSuffix(".apps.googleusercontent.com") else { return nil }
         let scheme = "com.googleusercontent.apps." + id.replacingOccurrences(of: ".apps.googleusercontent.com", with: "")
         return OAuthPKCE(.init(authorize: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
@@ -23,10 +40,17 @@ final class YouTubeService: MusicLibraryProvider {
                                clientID: id, redirectURI: scheme + ":/oauth2redirect", callbackScheme: scheme,
                                scopes: ["https://www.googleapis.com/auth/youtube.readonly"]),
                          keychainKey: "youtube.tokens")
-    }()
+    }
+
+    func testConnection() async throws -> String {
+        let j = try await get("playlists", ["part": "snippet", "mine": "true", "maxResults": "1"])
+        let total = (j["pageInfo"] as? [String: Any])?["totalResults"] as? Int ?? 0
+        let first = ((j["items"] as? [[String: Any]])?.first?["snippet"] as? [String: Any])?["title"] as? String
+        return "Connected. \(total) playlist\(total == 1 ? "" : "s")" + (first.map { ". First: “\($0)”" } ?? ".")
+    }
 
     var setupProblem: [String]? {
-        if oauth == nil { return ["YouTube Not Set Up", "Needs a Google", "OAuth Client ID", "in Sources.xcconfig"] }
+        if oauth == nil { return ["YouTube Not Set Up", "Go to Settings ▸", "Set Up YouTube"] }
         return nil
     }
     var isSignedIn: Bool { oauth?.isSignedIn ?? false }

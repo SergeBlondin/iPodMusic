@@ -77,6 +77,8 @@ final class Navigator {
     var npMode: NowPlayingMode = .progress
     var scrubPreview: TimeInterval? = nil
     var showSearch = false
+    /// Settings ▸ Set Up Spotify / Set Up YouTube opens a touch sheet (text entry + copy buttons need touch).
+    var setupSheet: MusicSourceKind? = nil
     var pressed: WheelSegment? = nil
     var centerPressed = false
     var authorized = false
@@ -128,6 +130,26 @@ final class Navigator {
         return nil
     }
 
+    /// "✓" when the source has a Client ID and is signed in.
+    func setupStatus(_ k: MusicSourceKind) -> String? {
+        guard let p = hub.library(for: k), p.setupProblem == nil else { return nil }
+        return p.isSignedIn ? "✓" : "Sign In"
+    }
+
+    /// Called when the setup sheet closes.
+    func setupClosed() {
+        stack[0].rows = mainRows()
+        let i = stack.count - 1
+        if current.spec.isSettings {
+            let sel = stack[i].selected
+            stack[i].rows = settingsRows(); stack[i].selected = sel
+            clampSelection()
+        } else if i > 0 {
+            reloadAfterSignIn()
+        }
+        noteActivity()
+    }
+
     func sourceRows() -> [Row] {
         MusicSourceKind.allCases.map { k in
             Row(title: k.label, value: k == settings.source ? "✓" : nil, action: .setSource(k))
@@ -156,6 +178,9 @@ final class Navigator {
             if stack.count > 1 { stack[1].selected = 3 }
         } else if settings.startScreen == "settings" {
             push(.settings, animated: false)
+        } else if settings.startScreen == "setupSpotify" || settings.startScreen == "setupYouTube" {
+            push(.settings, animated: false)
+            setupSheet = settings.startScreen == "setupSpotify" ? .spotify : .youtubeMusic
         } else if settings.startScreen == "source" {
             push(.settings, animated: false)
             push(.source, animated: false)
@@ -203,6 +228,8 @@ final class Navigator {
     func settingsRows() -> [Row] {
         var rows = [
             Row(title: "Source", value: settings.source.short, chevron: true, action: .push(.source)),
+            Row(title: "Set Up Spotify", value: setupStatus(.spotify), chevron: true, action: .openSetup(.spotify)),
+            Row(title: "Set Up YouTube", value: setupStatus(.youtubeMusic), chevron: true, action: .openSetup(.youtubeMusic)),
             Row(title: "Shuffle", value: settings.shuffle.label, action: .toggle(.shuffle)),
             Row(title: "Repeat", value: settings.repeatMode.label, action: .toggle(.repeatMode)),
             Row(title: "Backlight Timer", value: settings.backlightTimer.label, action: .toggle(.backlight)),
@@ -406,6 +433,8 @@ final class Navigator {
             stack[0].rows = mainRows()
         case .openURL(let url):
             UIApplication.shared.open(url)
+        case .openSetup(let k):
+            setupSheet = k
         case .none: break
         }
     }

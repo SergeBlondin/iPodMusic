@@ -87,6 +87,7 @@ enum RowAction {
     case signIn
     case signOut
     case openURL(URL)
+    case openSetup(MusicSourceKind)
     case back
     case none
 }

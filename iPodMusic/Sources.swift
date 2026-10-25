@@ -59,6 +59,8 @@ protocol MusicLibraryProvider: AnyObject {
     func rows(for spec: ScreenSpec) async throws -> [Row]
     /// Every song, for "Shuffle Songs".
     func allSongs() async throws -> [RemoteTrack]
+    /// Setup "Test" step: fetches one playlist and describes the result.
+    func testConnection() async throws -> String
 }
 
 /// The playback half of a source.
@@ -115,6 +117,42 @@ final class SourceHub {
     func handle(url: URL) -> Bool {
         if spotify.handle(url: url) { revision += 1; return true }
         return false
+    }
+}
+
+// MARK: - Client IDs entered on the phone
+
+/// Client IDs pasted in the in-app setup. They override Config/Sources.xcconfig at runtime,
+/// so setup needs no Xcode and no rebuild. (Client IDs are public identifiers, not secrets;
+/// both sources use PKCE, so there is no client secret anywhere.)
+enum ClientIDStore {
+    private static func key(_ k: MusicSourceKind) -> String { "clientID.\(k.rawValue)" }
+    private static func plistKey(_ k: MusicSourceKind) -> String? {
+        switch k { case .spotify: return "SpotifyClientID"; case .youtubeMusic: return "GoogleClientID"; case .appleMusic: return nil }
+    }
+    static func saved(_ k: MusicSourceKind) -> String? {
+        let v = UserDefaults.standard.string(forKey: key(k))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (v?.isEmpty ?? true) ? nil : v
+    }
+    static func save(_ v: String?, for k: MusicSourceKind) {
+        if let v, !v.isEmpty { UserDefaults.standard.set(v, forKey: key(k)) }
+        else { UserDefaults.standard.removeObject(forKey: key(k)) }
+    }
+    static func effective(_ k: MusicSourceKind) -> String? {
+        saved(k) ?? plistKey(k).flatMap(AppConfig.string)
+    }
+    /// Returns the cleaned ID, or nil when it doesn't look right.
+    static func validate(_ raw: String, for k: MusicSourceKind) -> String? {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch k {
+        case .spotify:
+            let l = s.lowercased()
+            return l.range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil ? l : nil
+        case .youtubeMusic:
+            return s.range(of: "^[0-9]+-[A-Za-z0-9_]+\\.apps\\.googleusercontent\\.com$", options: .regularExpression) != nil ? s : nil
+        case .appleMusic:
+            return nil
+        }
     }
 }
 

@@ -12,8 +12,28 @@ final class SpotifyService: NSObject, MusicLibraryProvider, RemotePlayback {
     let kind = MusicSourceKind.spotify
     private let api = URL(string: "https://api.spotify.com/v1")!
 
-    let clientID = AppConfig.string("SpotifyClientID")
-    private lazy var oauth: OAuthPKCE? = clientID.map {
+    /// Pasted in Settings ▸ Set Up Spotify, else Config/Sources.xcconfig.
+    var clientID: String? { ClientIDStore.effective(.spotify) }
+    private var builtFor: String?
+    private var _oauth: OAuthPKCE?
+    private var _remote: SPTAppRemote?
+    private var oauth: OAuthPKCE? { rebuildIfNeeded(); return _oauth }
+    private var appRemote: SPTAppRemote? { rebuildIfNeeded(); return _remote }
+
+    /// (Re)creates the OAuth client and App Remote when the Client ID changes.
+    private func rebuildIfNeeded() {
+        let id = clientID
+        guard id != builtFor || (id != nil && _oauth == nil) else { return }
+        if builtFor != nil, builtFor != id { Keychain.delete("spotify.tokens"); cachedSongs = nil }
+        if _remote?.isConnected == true { _remote?.disconnect() }
+        builtFor = id
+        _oauth = id.map(makeOAuth)
+        _remote = id.map(makeRemote)
+    }
+
+    private func makeOAuth(_ id: String) -> OAuthPKCE {
+        let x: String? = id
+        return x.map {
         OAuthPKCE(.init(authorize: URL(string: "https://accounts.spotify.com/authorize")!,
                         token: URL(string: "https://accounts.spotify.com/api/token")!,
                         clientID: $0, redirectURI: Self.redirectURI, callbackScheme: "ipodmusic",
@@ -21,18 +41,32 @@ final class SpotifyService: NSObject, MusicLibraryProvider, RemotePlayback {
                                  "user-follow-read", "user-read-playback-state", "user-modify-playback-state",
                                  "user-read-currently-playing", "app-remote-control"]),
                   keychainKey: "spotify.tokens")
+        }!
     }
-    private lazy var appRemote: SPTAppRemote? = clientID.map {
+
+    private func makeRemote(_ id: String) -> SPTAppRemote {
+        let x: String? = id
+        return x.map {
         let cfg = SPTConfiguration(clientID: $0, redirectURL: URL(string: Self.redirectURI)!)
         let r = SPTAppRemote(configuration: cfg, logLevel: .error)
         r.delegate = self
         return r
+        }!
+    }
+
+    func testConnection() async throws -> String {
+        let me = try await get("me")
+        let pl = try await get("me/playlists", ["limit": "1"])
+        let name = me["display_name"] as? String ?? "you"
+        let total = pl["total"] as? Int ?? 0
+        let first = ((pl["items"] as? [[String: Any]])?.first?["name"] as? String)
+        return "Connected as \(name). \(total) playlist\(total == 1 ? "" : "s")" + (first.map { ". First: “\($0)”" } ?? ".")
     }
 
     // MARK: Library
 
     var setupProblem: [String]? {
-        if clientID == nil { return ["Spotify Not Set Up", "Needs a Client ID", "in Sources.xcconfig"] }
+        if clientID == nil { return ["Spotify Not Set Up", "Go to Settings ▸", "Set Up Spotify"] }
         return nil
     }
     var isSignedIn: Bool { oauth?.isSignedIn ?? false }

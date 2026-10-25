@@ -28,6 +28,11 @@ struct ContentView: View {
             }
         }
         .background(HiddenVolumeView().frame(width: 1, height: 1))
+        .sheet(item: $nav.setupSheet, onDismiss: { nav.setupClosed() }) { kind in
+            SourceSetupView(kind: kind)
+                .environment(settings)
+                .environment(nav)
+        }
         .alert("Search \(settings.demoMode ? "Apple Music" : settings.source.label)", isPresented: $nav.showSearch) {
             TextField("Artists, songs, albums", text: $searchText)
             Button("Search") { nav.submitSearch(searchText) }
