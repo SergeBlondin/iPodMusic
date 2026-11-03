@@ -34,6 +34,7 @@ final class AppSettings {
     var clicker: Bool { didSet { d.set(clicker, forKey: "clicker") } }
     var haptics: Bool { didSet { d.set(haptics, forKey: "haptics") } }
     var backlightTimer: BacklightTimer { didSet { d.set(backlightTimer.rawValue, forKey: "backlightTimer") } }
+    var jukeboxStyle: Bool { didSet { d.set(jukeboxStyle, forKey: "jukeboxStyle") } }
     var albumArt: Bool { didSet { d.set(albumArt, forKey: "albumArt") } }
     var demoMode: Bool { didSet { d.set(demoMode, forKey: "demoMode") } }
     var shuffle: ShuffleSetting { didSet { d.set(shuffle.rawValue, forKey: "shuffle") } }
@@ -54,6 +55,7 @@ final class AppSettings {
         haptics = d.bool(forKey: "haptics")
         backlightTimer = BacklightTimer(rawValue: d.string(forKey: "backlightTimer") ?? "always") ?? .always
         albumArt = d.bool(forKey: "albumArt")
+        jukeboxStyle = d.bool(forKey: "jukeboxStyle")
         demoMode = d.bool(forKey: "demoMode")
         shuffle = ShuffleSetting(rawValue: d.string(forKey: "shuffle") ?? "off") ?? .off
         repeatMode = RepeatSetting(rawValue: d.string(forKey: "repeat") ?? "off") ?? .off
@@ -72,6 +74,7 @@ final class AppSettings {
     func reset() {
         theme = .white; clicker = true; haptics = true; backlightTimer = .always; albumArt = true
         shuffle = .off; repeatMode = .off; autoNowPlaying = true
+        jukeboxStyle = false
     }
 }
 
