@@ -19,6 +19,7 @@
 		8C732F8FA7BE02C4CDE082E3 /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3F1868EDAECF3B3CB72418EC /* PixelifySans.ttf */; };
 		90181FC787295A83A1D4DA7F /* Feedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5BE6D01C328D7E3EA9B1216 /* Feedback.swift */; };
 		9B4922262CD4366DB6A13572 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3F7EFA8DE06256776F7D3A /* ContentView.swift */; };
+		F5D9B28C01E3607B4C2F9D58 /* JukeboxCabinetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C8A17B90D25F6A3B1E8C47 /* JukeboxCabinetView.swift */; };
 		B19AFEEE71446D8BDF307F88 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC1D8871978ECEAD55BD24E /* Library.swift */; };
 		BA8AB1A2AA7DE78496C5B548 /* YouTubeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6DD06F5FA5525B7B642C02 /* YouTubeService.swift */; };
 		BF97D3EB1704F517294D7BD1 /* Navigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A46F10EB833FB04FE3893208 /* Navigator.swift */; };
@@ -47,6 +48,7 @@
 		A46F10EB833FB04FE3893208 /* Navigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navigator.swift; sourceTree = "<group>"; };
 		CD524B01A1C358F0841A4ED0 /* PlayerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerModel.swift; sourceTree = "<group>"; };
 		DC3F7EFA8DE06256776F7D3A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E4C8A17B90D25F6A3B1E8C47 /* JukeboxCabinetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JukeboxCabinetView.swift; sourceTree = "<group>"; };
 		E5BE6D01C328D7E3EA9B1216 /* Feedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feedback.swift; sourceTree = "<group>"; };
 		E813A726846A40BC87FAEF2A /* click.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = click.wav; sourceTree = "<group>"; };
 		EB834EA86AF1A45E44F2962B /* Sources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				02F772E7E734138A97859512 /* Assets.xcassets */,
 				677BB43DFA34E90C338EEB55 /* ClickWheelView.swift */,
 				DC3F7EFA8DE06256776F7D3A /* ContentView.swift */,
+				E4C8A17B90D25F6A3B1E8C47 /* JukeboxCabinetView.swift */,
 				E5BE6D01C328D7E3EA9B1216 /* Feedback.swift */,
 				9DC8E925DDE0BD4884F26229 /* Info.plist */,
 				0F81F75772CFAE0F16F1616B /* iPodMusicApp.swift */,
@@ -214,6 +217,7 @@
 			files = (
 				4C5375880B3CEA17A669F89C /* ClickWheelView.swift in Sources */,
 				9B4922262CD4366DB6A13572 /* ContentView.swift in Sources */,
+				F5D9B28C01E3607B4C2F9D58 /* JukeboxCabinetView.swift in Sources */,
 				90181FC787295A83A1D4DA7F /* Feedback.swift in Sources */,
 				720D9460689B380FDE7EEAFA /* LCDView.swift in Sources */,
 				B19AFEEE71446D8BDF307F88 /* Library.swift in Sources */,
