@@ -236,6 +236,7 @@ final class Navigator {
             Row(title: "Clicker", value: settings.clicker ? "On" : "Off", action: .toggle(.clicker)),
             Row(title: "Haptics", value: settings.haptics ? "On" : "Off", action: .toggle(.haptics)),
             Row(title: "Album Art", value: settings.albumArt ? "On" : "Off", action: .toggle(.albumArt)),
+            Row(title: "Jukebox Style", value: settings.jukeboxStyle ? "On" : "Off", action: .toggle(.jukeboxStyle)),
             Row(title: "Theme", value: settings.theme.label, action: .toggle(.theme)),
             Row(title: "Auto Now Playing", value: settings.autoNowPlaying ? "On" : "Off", action: .toggle(.autoNowPlaying)),
         ]
@@ -471,6 +472,7 @@ final class Navigator {
         case .haptics: settings.haptics.toggle()
         case .backlight: settings.backlightTimer = cycle(settings.backlightTimer); noteActivity()
         case .albumArt: settings.albumArt.toggle()
+        case .jukeboxStyle: settings.jukeboxStyle.toggle()
         case .theme: settings.theme = cycle(settings.theme)
         case .autoNowPlaying: settings.autoNowPlaying.toggle()
         case .demo:

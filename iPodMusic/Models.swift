@@ -23,7 +23,7 @@ enum QueueSource {
     }
 }
 
-enum SettingKey { case shuffle, repeatMode, clicker, haptics, backlight, albumArt, theme, demo, autoNowPlaying, reset }
+enum SettingKey { case shuffle, repeatMode, clicker, haptics, backlight, albumArt, jukeboxStyle, theme, demo, autoNowPlaying, reset }
 
 indirect enum ScreenSpec {
     case main

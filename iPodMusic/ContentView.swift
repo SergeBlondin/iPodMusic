@@ -1,10 +1,12 @@
 import SwiftUI
+import MusicKit
 
 /// The whole device, laid out in the web iPod's CSS pixel units (415 × 692 body)
 /// and scaled by `u` to fit the phone.
 struct ContentView: View {
     @Environment(AppSettings.self) private var settings
     @Environment(Navigator.self) private var nav
+    @Environment(PlayerModel.self) private var player
     @State private var searchText = ""
 
     var body: some View {
@@ -14,17 +16,30 @@ struct ContentView: View {
             let u = max(0.5, min((g.size.width - 24) / 415, (g.size.height - 56) / 700, 1.2))
             ZStack {
                 p.background.ignoresSafeArea()
-                VStack(spacing: 10 * u) {
-                    if settings.demoMode {
-                        Text("DEMO MODE · sample songs, not your Apple Music")
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, 10).padding(.vertical, 4)
-                            .background(Capsule().fill(Color.orange.opacity(0.15)))
+                if g.size.width > g.size.height {
+                    HStack(spacing: 0) {
+                        LandscapeCoverFlowView()
+                        if player.remoteKind == .youtubeMusic {
+                            YouTubePlayerView(player: player.hub.youtube.player)
+                                .frame(width: 200, height: 200)
+                                .onAppear { player.hub.youtube.player.setVisible(true) }
+                                .onDisappear { player.hub.youtube.player.setVisible(false) }
+                        }
                     }
-                    IPodBody(u: u)
+                    .background(Color.black.ignoresSafeArea())
+                } else {
+                    VStack(spacing: 10 * u) {
+                        if settings.demoMode {
+                            Text("DEMO MODE · sample songs, not your Apple Music")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 10).padding(.vertical, 4)
+                                .background(Capsule().fill(Color.orange.opacity(0.15)))
+                        }
+                        IPodBody(u: u)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .background(HiddenVolumeView().frame(width: 1, height: 1))
@@ -38,6 +53,381 @@ struct ContentView: View {
             Button("Search") { nav.submitSearch(searchText) }
             Button("Cancel", role: .cancel) {}
         }
+    }
+}
+
+
+private struct LandscapeCoverFlowView: View {
+    @Environment(AppSettings.self) private var settings
+    @Environment(Navigator.self) private var nav
+    @Environment(PlayerModel.self) private var player
+    @State private var albums: [Row] = []
+    @State private var loading = true
+    @State private var message: String?
+    @State private var selectedAlbumID: UUID?
+    @State private var centeredAlbumID: UUID?
+
+    var body: some View {
+        GeometryReader { geometry in
+            let side = max(80, min(280, (geometry.size.height - 140) / 1.24))
+            VStack(spacing: 12) {
+                HStack {
+                    Text(settings.jukeboxStyle ? (settings.demoMode ? "Jukebox · Demo" : "Jukebox") : (settings.demoMode ? "Cover Flow · Demo" : "Cover Flow"))
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        player.togglePlay()
+                    } label: {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    }
+                    .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+                    .disabled(!player.hasItem)
+                }
+                .padding(.horizontal, 24)
+                if loading {
+                    ProgressView("Loading albums…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if albums.isEmpty {
+                    Text(message ?? "No albums. Add music to your library, or enable Demo Mode in Settings.")
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding()
+                } else if settings.jukeboxStyle {
+                    ScrollView(.vertical) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 204, maximum: 260), spacing: 24)],
+                                  spacing: 24) {
+                            ForEach(albums) { album in
+                                FlippingAlbumCard(
+                                    album: album,
+                                    side: 180,
+                                    isFlipped: selectedAlbumID == album.id,
+                                    flip: {
+                                        nav.noteActivity()
+                                        selectedAlbumID = selectedAlbumID == album.id ? nil : album.id
+                                    }
+                                )
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(Color(white: 0.09))
+                                        .overlay {
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .strokeBorder(.orange.opacity(0.6), lineWidth: 2)
+                                        }
+                                )
+                            }
+                        }
+                        .padding(20)
+                    }
+                    Text("Tap an album to see songs")
+                        .font(.caption)
+                } else {
+                    ScrollView(.horizontal) {
+                        LazyHStack(spacing: 20) {
+                            ForEach(albums) { album in
+                                FlippingAlbumCard(
+                                    album: album,
+                                    side: side,
+                                    isFlipped: selectedAlbumID == album.id,
+                                    flip: {
+                                        nav.noteActivity()
+                                        withAnimation(.easeInOut(duration: 0.5)) {
+                                            centeredAlbumID = album.id
+                                            selectedAlbumID = selectedAlbumID == album.id ? nil : album.id
+                                        }
+                                    }
+                                )
+                                .id(album.id)
+                                .visualEffect { content, proxy in
+                                    let distance = (proxy.frame(in: .named("coverFlowViewport")).midX - geometry.size.width / 2) / (side + 20)
+                                    return content
+                                        .scaleEffect(1 - min(abs(distance), 1) * 0.2)
+                                        .rotation3DEffect(.degrees(max(-1, min(1, distance)) * -50),
+                                                          axis: (x: 0, y: 1, z: 0), perspective: 0.5)
+                                }
+                            }
+                        }
+                        .scrollTargetLayout()
+                    }
+                    .safeAreaPadding(.horizontal, max(0, (geometry.size.width - side) / 2))
+                    .coordinateSpace(name: "coverFlowViewport")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scrollTargetBehavior(.viewAligned)
+                    .scrollIndicators(.hidden)
+                    .scrollPosition(id: $centeredAlbumID, anchor: .center)
+                    Text(message ?? "Swipe to browse · Tap an album to see songs")
+                        .font(.caption)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.vertical, 12)
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.ignoresSafeArea())
+        }
+        .task {
+            do {
+                if let provider = nav.remoteLibrary {
+                    let rows = try await provider.rows(for: .albums)
+                    albums = rows.filter {
+                        if case .push = $0.action { return true }
+                        return false
+                    }
+                    if albums.isEmpty, !rows.isEmpty {
+                        message = rows.map(\.title).joined(separator: " ")
+                    }
+                } else if settings.demoMode || MusicAuthorization.currentStatus == .authorized {
+                    albums = try await nav.library.rows(for: .albums, demo: settings.demoMode)
+                } else {
+                    message = "Allow Apple Music access in portrait mode to browse your albums."
+                }
+            } catch {
+                message = error.localizedDescription
+            }
+            centeredAlbumID = albums.first?.id
+            loading = false
+        }
+    }
+
+
+}
+
+
+
+// The visibility is derived from the interpolated angle, so the faces swap
+// precisely when edge-on and the song titles never appear mirrored.
+private struct AlbumFlipFace: ViewModifier, Animatable {
+    var angle: Double
+    let isBack: Bool
+
+    var animatableData: Double {
+        get { angle }
+        set { angle = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity((angle >= 90) == isBack ? 1 : 0)
+            .rotation3DEffect(.degrees(angle + (isBack ? 180 : 0)),
+                              axis: (x: 0, y: 1, z: 0), perspective: 0.65)
+    }
+}
+
+private struct FlippingAlbumCard: View {
+    let album: Row
+    let side: CGFloat
+    let isFlipped: Bool
+    let flip: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ZStack {
+                Button(action: flip) {
+                    CoverFlowAlbumCard(row: album, side: side)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .modifier(AlbumFlipFace(angle: isFlipped ? 180 : 0, isBack: false))
+                .allowsHitTesting(!isFlipped)
+                .accessibilityHidden(isFlipped)
+
+                CoverFlowSongsView(album: album, isActive: isFlipped, flipBack: flip)
+                    .frame(width: side, height: side)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .modifier(AlbumFlipFace(angle: isFlipped ? 180 : 0, isBack: true))
+                    .allowsHitTesting(isFlipped)
+                    .accessibilityHidden(!isFlipped)
+            }
+            .frame(width: side, height: side)
+            .shadow(color: .black.opacity(0.6), radius: 10, x: 4, y: 6)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.5), value: isFlipped)
+            .transaction { transaction in
+                if reduceMotion { transaction.animation = nil }
+            }
+
+            CoverFlowAlbumCard(row: album, side: side)
+                .scaleEffect(x: 1, y: -1)
+                .frame(height: side * 0.24, alignment: .top)
+                .clipped()
+                .mask(LinearGradient(colors: [.white.opacity(0.4), .clear],
+                                     startPoint: .top, endPoint: .bottom))
+                .opacity(isFlipped ? 0 : 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+            Text(album.title)
+                .font(.headline)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(height: 44, alignment: .top)
+        }
+        .frame(width: side)
+    }
+}
+
+private struct CoverFlowSongsView: View {
+    let album: Row
+    @Environment(AppSettings.self) private var settings
+    @Environment(Navigator.self) private var nav
+    @Environment(PlayerModel.self) private var player
+    let isActive: Bool
+    let flipBack: () -> Void
+    @State private var songs: [Row] = []
+    @State private var loading = true
+    @State private var startingPlayback = false
+    @State private var message: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(album.title)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(2)
+                Spacer(minLength: 4)
+                Button(action: flipBack) {
+                    Image(systemName: "arrow.uturn.backward")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Show album artwork")
+            }
+            .padding(.horizontal, 10)
+            Divider()
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 8) {
+                    if loading {
+                        ProgressView("Loading songs…")
+                    } else if songs.isEmpty {
+                        Text(message ?? "No playable songs in this album.")
+                    } else {
+                        Button("Play Album", systemImage: "play.fill") {
+                            if let first = songs.first { play(first) }
+                        }
+                        .frame(minHeight: 44)
+                        .disabled(startingPlayback)
+                        ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+                            Button {
+                                play(song)
+                            } label: {
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text("\(index + 1)")
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                    Text(song.title)
+                                        .multilineTextAlignment(.leading)
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .disabled(startingPlayback)
+                            Divider()
+                        }
+                        if startingPlayback {
+                            ProgressView("Starting playback…")
+                        }
+                        if let message {
+                            Text(message).foregroundStyle(.secondary)
+                        }
+                        if player.hasItem {
+                            Text("\(player.isPlaying ? "Playing" : "Paused"): \(player.title)")
+                        }
+                    }
+                }
+                .font(.caption)
+                .padding(12)
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color(white: 0.12))
+        .background(Color(red: 0.94, green: 0.92, blue: 0.86))
+        .task(id: isActive) {
+            guard isActive, loading else { return }
+            defer {
+                if !Task.isCancelled { loading = false }
+            }
+            guard case .push(let spec) = album.action else {
+                message = "This album cannot be opened."
+                return
+            }
+            do {
+                let rows: [Row]
+                if let provider = nav.remoteLibrary {
+                    rows = try await provider.rows(for: spec)
+                } else if !settings.demoMode, case .album(let musicAlbum) = spec {
+                    // These covers come from the library, so load its tracks
+                    // instead of resolving a different catalog version.
+                    let full = try await musicAlbum.with([.tracks], preferredSource: .library)
+                    var tracks = Array(full.tracks ?? [])
+                    var batch = full.tracks
+                    while let current = batch, current.hasNextBatch {
+                        try Task.checkCancellation()
+                        batch = try await current.nextBatch()
+                        if let batch { tracks.append(contentsOf: batch) }
+                    }
+                    rows = tracks.enumerated().map { index, track in
+                        Row(title: track.title, action: .play(.tracks(tracks), index))
+                    }
+                } else {
+                    rows = try await nav.library.rows(for: spec, demo: settings.demoMode)
+                }
+                try Task.checkCancellation()
+                songs = rows.filter {
+                    if case .play = $0.action { return true }
+                    return false
+                }
+                if songs.isEmpty, !rows.isEmpty {
+                    message = rows.map(\.title).joined(separator: " ")
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                message = error.localizedDescription
+            }
+        }
+    }
+
+    private func play(_ song: Row) {
+        guard !startingPlayback, case .play(let source, let index) = song.action else { return }
+        startingPlayback = true
+        message = nil
+        nav.noteActivity()
+        Task {
+            defer { startingPlayback = false }
+            await player.play(source, at: index)
+            message = player.lastError
+            if settings.demoMode {
+                message = "Demo Mode simulates playback without audio."
+            }
+        }
+    }
+}
+
+private struct CoverFlowAlbumCard: View {
+    let row: Row
+    let side: CGFloat
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Group {
+                if case .push(.album(let album)) = row.action, let artwork = album.artwork {
+                    ArtworkImage(artwork, width: side, height: side)
+                } else {
+                    ZStack {
+                        LinearGradient(colors: [.indigo, .purple, .black],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                        Image(systemName: "music.note")
+                            .font(.system(size: side * 0.35))
+                    }
+                }
+            }
+            .frame(width: side, height: side)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .frame(width: side)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(row.title)
+        .accessibilityHint("Flips the album over to show songs")
     }
 }
 

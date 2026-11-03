@@ -37,7 +37,8 @@
 		35A439803BE2BA7C4A5623B4 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		3E99FDD688D49769BE8ACAED /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		3F1868EDAECF3B3CB72418EC /* PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = PixelifySans.ttf; sourceTree = "<group>"; };
-		5A3895C1BB26D1F01E454122 /* iPodMusic.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iPodMusic.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		55FC6397309A5CA600A558D2 /* CoverFlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverFlowLayout.swift; sourceTree = "<group>"; };
+		5A3895C1BB26D1F01E454122 /* iPodMusic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iPodMusic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5CC1D8871978ECEAD55BD24E /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
 		677BB43DFA34E90C338EEB55 /* ClickWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClickWheelView.swift; sourceTree = "<group>"; };
 		7F4482E878E9935ABA8ED276 /* SpotifyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotifyService.swift; sourceTree = "<group>"; };
@@ -86,6 +87,7 @@
 			children = (
 				E5F30C545E0DF3FFDA8C7737 /* Config */,
 				F8EF75B6A35AECC8656EBA06 /* iPodMusic */,
+				55FC6397309A5CA600A558D2 /* CoverFlowLayout.swift */,
 				516B3CEB552504E590D034B8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -161,7 +163,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
 					E6EDD694AC37BBA3B32199FC = {
 						DevelopmentTeam = X647WK46TN;
@@ -271,6 +273,7 @@
 				DEVELOPMENT_TEAM = X647WK46TN;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -288,6 +291,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.sergebl.iPodMusic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -352,6 +356,7 @@
 				DEVELOPMENT_TEAM = X647WK46TN;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -376,6 +381,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.sergebl.iPodMusic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
