@@ -93,34 +93,7 @@ private struct LandscapeCoverFlowView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
                 } else if settings.jukeboxStyle {
-                    ScrollView(.vertical) {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 204, maximum: 260), spacing: 24)],
-                                  spacing: 24) {
-                            ForEach(albums) { album in
-                                FlippingAlbumCard(
-                                    album: album,
-                                    side: 180,
-                                    isFlipped: selectedAlbumID == album.id,
-                                    flip: {
-                                        nav.noteActivity()
-                                        selectedAlbumID = selectedAlbumID == album.id ? nil : album.id
-                                    }
-                                )
-                                .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(Color(white: 0.09))
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 14)
-                                                .strokeBorder(.orange.opacity(0.6), lineWidth: 2)
-                                        }
-                                )
-                            }
-                        }
-                        .padding(20)
-                    }
-                    Text("Tap an album to see songs")
-                        .font(.caption)
+                    JukeboxCabinetView(albums: albums, selectedAlbumID: $selectedAlbumID)
                 } else {
                     ScrollView(.horizontal) {
                         LazyHStack(spacing: 20) {
@@ -194,6 +167,146 @@ private struct LandscapeCoverFlowView: View {
 
 
 
+
+private struct JukeboxCabinetView: View {
+    let albums: [Row]
+    @Binding var selectedAlbumID: UUID?
+    @Environment(Navigator.self) private var nav
+    @State private var centeredAlbumID: UUID?
+
+    private let chrome = LinearGradient(
+        colors: [.black, Color(white: 0.7), .white, Color(white: 0.25), .black],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+
+    var body: some View {
+        GeometryReader { geometry in
+            let side = max(64, min(250, geometry.size.height - 196))
+            VStack(spacing: 8) {
+                HStack(spacing: 16) {
+                    Image(systemName: "music.note")
+                    Text("JUKEBOX")
+                        .font(.system(.title3, design: .serif, weight: .black))
+                        .tracking(6)
+                    Image(systemName: "music.note")
+                }
+                .foregroundStyle(Color(red: 1, green: 0.92, blue: 0.56))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 6)
+                .background(LinearGradient(colors: [.black, .indigo.opacity(0.7), .black],
+                                           startPoint: .leading, endPoint: .trailing))
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(chrome).frame(height: 3)
+                }
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(Array(albums.enumerated()), id: \.element.id) { index, album in
+                            VStack(spacing: 4) {
+                                Text(String(format: "%02d", index + 1))
+                                    .font(.system(.caption2, design: .monospaced, weight: .bold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 10)
+                                    .background(Color(red: 0.91, green: 0.88, blue: 0.66))
+                                FlippingAlbumCard(
+                                    album: album, side: side,
+                                    isFlipped: selectedAlbumID == album.id,
+                                    flip: {
+                                        nav.noteActivity()
+                                        withAnimation(.easeInOut(duration: 0.5)) {
+                                            centeredAlbumID = album.id
+                                            selectedAlbumID = selectedAlbumID == album.id ? nil : album.id
+                                        }
+                                    },
+                                    showsReflection: false
+                                )
+                            }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 5)
+                            .background(Color(white: 0.055))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .strokeBorder(chrome, lineWidth: 4)
+                                    .allowsHitTesting(false)
+                            }
+                            .id(album.id)
+                            .visualEffect { content, proxy in
+                                // Each step away from the rack's center turns the
+                                // sleeve farther inward, like a curved magazine.
+                                let center = (geometry.size.width - 64) / 2
+                                let position = (proxy.frame(in: .named("jukeboxRack")).midX - center) / (side + 24)
+                                let depth = min(abs(position), 3)
+                                return content
+                                    .rotation3DEffect(.degrees(max(-78, min(78, -position * 28))),
+                                                      axis: (x: 0, y: 1, z: 0), perspective: 0.45)
+                                    .scaleEffect(1 - depth * 0.07)
+                                    .offset(y: depth * depth * 3)
+                            }
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.vertical, 6)
+                }
+                .safeAreaPadding(.horizontal, max(12, (geometry.size.width - 64 - side - 14) / 2))
+                .coordinateSpace(name: "jukeboxRack")
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id: $centeredAlbumID, anchor: .center)
+                .scrollIndicators(.hidden)
+                .background(Color(red: 0.12, green: 0.12, blue: 0.08))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(chrome, lineWidth: 5)
+                        .allowsHitTesting(false)
+                }
+
+                HStack(spacing: 14) {
+                    Image(systemName: "hifispeaker.fill")
+                    Text("SELECT AN ALBUM · TAP TO TURN")
+                        .font(.system(.caption2, design: .monospaced, weight: .bold))
+                        .tracking(1)
+                    Image(systemName: "hifispeaker.fill")
+                }
+                .foregroundStyle(Color(red: 0.9, green: 0.79, blue: 0.42))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 16)
+            .background {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(LinearGradient(colors: [Color(white: 0.2), .black, Color(white: 0.08)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 30).strokeBorder(chrome, lineWidth: 6)
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 23)
+                    .strokeBorder(Color.yellow.opacity(0.75), lineWidth: 5)
+                    .blur(radius: 5)
+                    .padding(9)
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 23)
+                    .strokeBorder(
+                        LinearGradient(colors: [Color(red: 0.96, green: 1, blue: 0.2),
+                                                Color(red: 0.64, green: 0.68, blue: 0.1),
+                                                Color(red: 1, green: 0.94, blue: 0.3)],
+                                       startPoint: .leading, endPoint: .trailing),
+                        lineWidth: 5)
+                    .padding(9)
+                    .allowsHitTesting(false)
+            }
+        }
+        .padding(.horizontal, 12)
+        .onAppear {
+            if !albums.isEmpty { centeredAlbumID = albums[albums.count / 2].id }
+        }
+    }
+}
+
 // The visibility is derived from the interpolated angle, so the faces swap
 // precisely when edge-on and the song titles never appear mirrored.
 private struct AlbumFlipFace: ViewModifier, Animatable {
@@ -218,6 +331,7 @@ private struct FlippingAlbumCard: View {
     let side: CGFloat
     let isFlipped: Bool
     let flip: () -> Void
+    var showsReflection = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -246,6 +360,7 @@ private struct FlippingAlbumCard: View {
                 if reduceMotion { transaction.animation = nil }
             }
 
+            if showsReflection {
             CoverFlowAlbumCard(row: album, side: side)
                 .scaleEffect(x: 1, y: -1)
                 .frame(height: side * 0.24, alignment: .top)
@@ -255,6 +370,7 @@ private struct FlippingAlbumCard: View {
                 .opacity(isFlipped ? 0 : 1)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+            }
 
             Text(album.title)
                 .font(.headline)
