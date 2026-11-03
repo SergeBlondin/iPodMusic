@@ -1,3 +1,25 @@
 build/
 *.xcuserstate
 xcuserdata/
+# --- secrets / build (added for GitHub) ---
+secrets.json
+secret.txt
+*.env
+.env*
+*token*
+*cookie*
+*credential*.json
+*.pem
+*.p12
+*.mobileprovision
+.venv/
+venv/
+__pycache__/
+*.pyc
+build/
+DerivedData/
+xcuserdata/
+node_modules/
+logs/
+*.log
+.DS_Store
