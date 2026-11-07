@@ -2,6 +2,7 @@ import SwiftUI
 import MusicKit
 import MediaPlayer
 import AVFoundation
+import os
 
 /// Wraps ApplicationMusicPlayer (or a simulated demo player) and publishes
 /// the Now Playing state that the LCD renders.
@@ -37,6 +38,11 @@ final class PlayerModel {
 
     private var player: ApplicationMusicPlayer { ApplicationMusicPlayer.shared }
     var isDemo: Bool { settings.demoMode }
+
+    /// `prepareToPlay()` on a multi-thousand-song library queue fails with
+    /// MPMusicPlayerControllerErrorDomain error 6 even though the starting
+    /// song's metadata loaded. Albums and ordinary playlists fit under this.
+    private let maxPreparedQueueCount = 100
 
     init(settings: AppSettings, hub: SourceHub) {
         self.settings = settings
@@ -99,6 +105,9 @@ final class PlayerModel {
             count = entries.count
         } else {
             hasItem = false
+            // A failed prepare drops the queue entry but used to leave the song
+            // length in place, so the LCD drew 0:00 and -3:33 under the error.
+            if lastError != nil { duration = 0 }
         }
         time = player.playbackTime
         isPlaying = player.state.playbackStatus == .playing
@@ -130,13 +139,9 @@ final class PlayerModel {
             demoQueue = songs; demoIndex = i; demoTime = 0; demoPlaying = true; demoLastTick = Date()
             applyDemo()
         case .songs(let songs):
-            guard songs.indices.contains(i) else { return }
-            player.queue = ApplicationMusicPlayer.Queue(for: songs, startingAt: songs[i])
-            await startPlayback()
+            await playAppleMusic(songs, at: i)
         case .tracks(let tracks):
-            guard tracks.indices.contains(i) else { return }
-            player.queue = ApplicationMusicPlayer.Queue(for: tracks, startingAt: tracks[i])
-            await startPlayback()
+            await playAppleMusic(tracks, at: i)
         }
     }
 
@@ -149,37 +154,173 @@ final class PlayerModel {
             await play(.demo(s.shuffled()), at: 0)
         case .songs(let s):
             guard !s.isEmpty else { return }
-            let shuffled = s.shuffled()
-            player.queue = ApplicationMusicPlayer.Queue(for: shuffled)
-            player.state.shuffleMode = .songs
-            await startPlayback()
+            await playAppleMusic(s.shuffled(), at: 0)
         case .tracks(let t):
             guard !t.isEmpty else { return }
-            player.queue = ApplicationMusicPlayer.Queue(for: t.shuffled())
-            await startPlayback()
+            await playAppleMusic(t.shuffled(), at: 0)
         }
     }
 
-    private func startPlayback() async {
-        applyModes()
+    /// Queues library or catalog items on `ApplicationMusicPlayer` (not the system
+    /// player, which can't enumerate the queue the LCD's "3 of 12" needs) and starts
+    /// playback. Spotify, YouTube, and Demo Mode never reach this.
+    private func playAppleMusic<T: PlayableMusicItem>(_ items: [T], at index: Int) async {
+        guard items.indices.contains(index) else { return }
+        remoteKind = nil
+        var status = MusicAuthorization.currentStatus
+        if status == .notDetermined { status = await MusicAuthorization.request() }
+        guard status == .authorized else {
+            failBeforePlayback("Allow Apple Music")
+            return
+        }
+
+        let catalogOnly = items.allSatisfy { isCatalogIdentifier($0.id.rawValue) }
+        // Search results are catalog songs and need a subscription. Library songs
+        // skip the lookup so a subscription check can't delay or block playback;
+        // purchased and downloaded tracks play without Apple Music.
+        var capability = AppleMusicCapability(canStream: nil, cloudLibrary: nil)
+        if catalogOnly {
+            capability = await appleMusicCapability()
+            if capability.canStream == false {
+                failBeforePlayback("Subscription needed")
+                return
+            }
+        }
+
+        lastError = nil
+        let (slice, start) = playbackSlice(items, at: index)
+        do {
+            try await startQueue(slice, startingAt: start)
+        } catch {
+            logPlaybackError(error, context: "queue", capability: capability, queueCount: slice.count)
+            // The whole slice can fail prepare while the tapped song itself is playable.
+            if slice.count > 1 {
+                do {
+                    try await startQueue([items[index]], startingAt: items[index])
+                } catch {
+                    await finishAppleFailure(error, capability: &capability, catalogOnly: catalogOnly, queueCount: 1)
+                    return
+                }
+            } else {
+                await finishAppleFailure(error, capability: &capability, catalogOnly: catalogOnly, queueCount: slice.count)
+                return
+            }
+        }
+        lastError = nil
+        refresh()
+    }
+
+    private func finishAppleFailure(_ error: Error, capability: inout AppleMusicCapability, catalogOnly: Bool, queueCount: Int) async {
+        if capability.canStream == nil { capability = await appleMusicCapability() }
+        logPlaybackError(error, context: "song", capability: capability, queueCount: queueCount)
+        failPlayback(error, capability: capability, catalogOnly: catalogOnly)
+    }
+
+    private func startQueue<T: PlayableMusicItem>(_ items: [T], startingAt start: T) async throws {
+        activatePlaybackSession()
+        player.queue = ApplicationMusicPlayer.Queue(for: items, startingAt: start)
         do {
             try await player.prepareToPlay()
-            try await player.play()
-            lastError = nil
-        } catch {
-            lastError = error.localizedDescription
+        } catch let prepareError {
+            // `play()` prepares on its own. Keep going so a flaky prepare doesn't
+            // hide a queue that would have started. If play fails too, surface the
+            // prepare error: that's the MPMusicPlayerControllerErrorDomain failure.
+            logPlaybackError(prepareError, context: "prepareToPlay", queueCount: items.count)
+            do {
+                try await player.play()
+            } catch {
+                logPlaybackError(error, context: "play after prepareToPlay", queueCount: items.count)
+                throw prepareError
+            }
+            writePlaybackModes()
+            return
         }
+        try await player.play()
+        writePlaybackModes()
+    }
+
+    /// A bounded queue. `Queue(for:)` of an entire MusicLibraryRequest (thousands of
+    /// songs) is what makes prepare fail after the starting song's duration is known.
+    private func playbackSlice<T>(_ items: [T], at index: Int) -> (items: [T], start: T) {
+        guard items.count > maxPreparedQueueCount else { return (items, items[index]) }
+        let before = min(15, index)
+        var start = index - before
+        var end = min(items.count, start + maxPreparedQueueCount)
+        if end - start < maxPreparedQueueCount {
+            start = max(0, end - maxPreparedQueueCount)
+        }
+        let slice = Array(items[start..<end])
+        return (slice, slice[index - start])
+    }
+
+    private func failBeforePlayback(_ message: String) {
+        if player.state.playbackStatus == .playing { player.pause() }
+        lastError = message
+        isPlaying = false
         refresh()
+    }
+
+    private func failPlayback(_ error: Error, capability: AppleMusicCapability, catalogOnly: Bool) {
+        lastError = ApplePlaybackMessage.friendly(error, capability: capability, catalogOnly: catalogOnly)
+        refresh()
+    }
+
+    private func activatePlaybackSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default)
+            try session.setActive(true)
+        } catch {
+            logPlaybackError(error, context: "audio session")
+        }
+    }
+
+    private func appleMusicCapability() async -> AppleMusicCapability {
+        do {
+            let subscription = try await MusicSubscription.current
+            return AppleMusicCapability(
+                canStream: subscription.canPlayCatalogContent,
+                cloudLibrary: subscription.hasCloudLibraryEnabled
+            )
+        } catch {
+            logPlaybackError(error, context: "subscription")
+            return AppleMusicCapability(canStream: nil, cloudLibrary: nil)
+        }
+    }
+
+    /// Catalog ids from MusicCatalogSearchRequest are decimal store ids.
+    /// Library ids from MusicLibraryRequest look like "i.…" or "l.…".
+    private func isCatalogIdentifier(_ raw: String) -> Bool {
+        !raw.isEmpty && raw.allSatisfy(\.isNumber)
     }
 
     func applyModes() {
         guard !isDemo else { return }
         if let r = remote { r.setModes(shuffle: settings.shuffle == .songs, repeatMode: settings.repeatMode); return }
-        player.state.shuffleMode = settings.shuffle == .songs ? .songs : .off
+        // Writing shuffle/repeat before the player is prepared makes the next
+        // prepareToPlay() throw MPMusicPlayerControllerErrorDomain error 6.
+        guard player.isPreparedToPlay else { return }
+        writePlaybackModes()
+    }
+
+    private func writePlaybackModes() {
+        // Leave the player's defaults alone when Shuffle and Repeat are Off.
+        // Assigning them on an unprepared player is what throws error 6, and
+        // assigning .off after a successful play is unnecessary for that case.
+        if settings.shuffle == .songs {
+            player.state.shuffleMode = .songs
+        } else if player.state.shuffleMode == .songs {
+            player.state.shuffleMode = .off
+        }
         switch settings.repeatMode {
-        case .off: player.state.repeatMode = MusicPlayer.RepeatMode.none
-        case .one: player.state.repeatMode = .one
-        case .all: player.state.repeatMode = .all
+        case .off:
+            if player.state.repeatMode == .one || player.state.repeatMode == .all {
+                player.state.repeatMode = MusicPlayer.RepeatMode.none
+            }
+        case .one:
+            player.state.repeatMode = .one
+        case .all:
+            player.state.repeatMode = .all
         }
     }
 
@@ -234,6 +375,7 @@ final class PlayerModel {
     }
 
     private func applyDemo() {
+        lastError = nil
         guard let s = demoQueue[safe: demoIndex] else { hasItem = false; isPlaying = false; return }
         hasItem = true
         title = s.title; artist = s.artist; album = s.album
@@ -246,6 +388,54 @@ final class PlayerModel {
 
 extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
+}
+
+private struct AppleMusicCapability {
+    var canStream: Bool?
+    var cloudLibrary: Bool?
+}
+
+private let applePlaybackLog = Logger(subsystem: "com.sergebl.iPodMusic", category: "AppleMusic")
+
+private func logPlaybackError(_ error: Error, context: String, capability: AppleMusicCapability? = nil, queueCount: Int? = nil) {
+    let ns = error as NSError
+    let debug = (ns.userInfo[NSDebugDescriptionErrorKey] as? String) ?? ""
+    let stream = capability?.canStream.map { $0 ? "true" : "false" } ?? "unknown"
+    let cloud = capability?.cloudLibrary.map { $0 ? "true" : "false" } ?? "unknown"
+    let count = queueCount.map(String.init) ?? "-"
+    applePlaybackLog.error("Apple Music \(context, privacy: .public) failed domain=\(ns.domain, privacy: .public) code=\(ns.code) queue=\(count, privacy: .public) canStream=\(stream, privacy: .public) cloudLibrary=\(cloud, privacy: .public) description=\(ns.localizedDescription, privacy: .public) debug=\(debug, privacy: .public)")
+    if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+        let underlyingDebug = (underlying.userInfo[NSDebugDescriptionErrorKey] as? String) ?? ""
+        applePlaybackLog.error("Apple Music \(context, privacy: .public) underlying domain=\(underlying.domain, privacy: .public) code=\(underlying.code) description=\(underlying.localizedDescription, privacy: .public) debug=\(underlyingDebug, privacy: .public)")
+    }
+}
+
+/// Short status lines for the iPod LCD. The player's own `localizedDescription`
+/// is "The operation couldn't be completed. (MPMusicPlayerControllerErrorDomain error N.)".
+private enum ApplePlaybackMessage {
+    static func friendly(_ error: Error, capability: AppleMusicCapability, catalogOnly: Bool) -> String {
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain { return "No connection" }
+        if ns.domain == MPErrorDomain {
+            let code = MPError.Code(rawValue: ns.code)
+            if code == MPError.permissionDenied { return "Allow Apple Music" }
+            if code == MPError.cloudServiceCapabilityMissing { return "Subscription needed" }
+            if code == MPError.networkConnectionFailed || code == MPError.requestTimedOut { return "No connection" }
+            if code == MPError.notFound { return "Song unavailable" }
+        }
+        if ns.domain == "MPMusicPlayerControllerErrorDomain" {
+            switch ns.code {
+            case 9: return "Playback timed out"
+            case 6 where capability.canStream == false:
+                return catalogOnly ? "Subscription needed" : "Not downloaded"
+            default: break
+            }
+        }
+        if capability.canStream == false {
+            return catalogOnly ? "Subscription needed" : "Not downloaded"
+        }
+        return "Couldn't play"
+    }
 }
 
 /// The click wheel adjusts the system volume, as on the iPod, via a hidden MPVolumeView.

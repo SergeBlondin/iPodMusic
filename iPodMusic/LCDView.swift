@@ -317,6 +317,20 @@ struct MarqueeText: View {
     private var label: some View { Text(text).font(.chicago(size)) }
 }
 
+/// The media player's localized text doesn't fit the LCD and isn't actionable.
+/// "The operation couldn't be completed. (MPMusicPlayerControllerErrorDomain …)"
+/// becomes a short status. The full domain and code are logged, not shown.
+private func lcdPlaybackMessage(_ message: String) -> String {
+    let folded = message
+        .replacingOccurrences(of: "\u{2019}", with: "'")
+        .replacingOccurrences(of: "\u{2018}", with: "'")
+        .lowercased()
+    if folded.contains("mpmusicplayercontrollererrordomain") || folded.contains("couldn't be completed") {
+        return "Couldn't play"
+    }
+    return message
+}
+
 // MARK: Now Playing
 
 struct NowPlayingView: View {
@@ -343,8 +357,8 @@ struct NowPlayingView: View {
             .padding(.bottom, 6 * u)
 
             if !player.hasItem {
-                Text(player.lastError ?? "No Music").font(.chicago(23 * u)).padding(.top, 30 * u)
-                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.6)
+                Text(lcdPlaybackMessage(player.lastError ?? "No Music")).font(.chicago(23 * u)).padding(.top, 30 * u)
+                    .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.7)
             } else if showArt {
                 HStack(alignment: .top, spacing: 9 * u) {
                     ArtView(u: u, side: 64 * u)
@@ -363,6 +377,9 @@ struct NowPlayingView: View {
                 .multilineTextAlignment(.center)
             }
             Spacer(minLength: 0)
+            if player.hasItem, let error = player.lastError {
+                Text(lcdPlaybackMessage(error)).font(.chicago(16 * u)).lineLimit(1).minimumScaleFactor(0.7)
+            }
             ModePanels(u: u)
         }
         .foregroundStyle(lcdInk)
